@@ -50,7 +50,14 @@ class DungeonGenerator(
         grid = Array(rows) { IntArray(cols) { WALL } }
 
         // 1. Generar habitaciones aleatorias sin solapamiento
-        val generatedRooms = generateRooms()
+        //    (si el azar no logra colocar al menos 2, se reintenta: con 0 rooms.first() fallaba)
+        var generatedRooms = generateRooms()
+        var intentos = 1
+        while (generatedRooms.size < 2 && intentos < 20) {
+            generatedRooms = generateRooms()
+            intentos++
+        }
+        require(generatedRooms.isNotEmpty()) { "El mapa ${cols}x$rows es muy chico para generar habitaciones" }
 
         // 2. MERGE SORT: ordenar habitaciones por área (mayor primero)
         rooms = MergeSort.sortByArea(generatedRooms)
@@ -75,9 +82,16 @@ class DungeonGenerator(
         exitPos = Cell(farthestRoom.centerY(), farthestRoom.centerX())
         grid[exitPos.row][exitPos.col] = EXIT
 
-        // 7. Colocar enemigo en una habitación intermedia
-        val enemyRoom = rooms.getOrElse(rooms.size / 2) { rooms.last() }
-        enemyPos = Cell(enemyRoom.centerY(), enemyRoom.centerX())
+        // 7. Colocar enemigo en una habitación intermedia, distinta a la del jugador y la salida
+        //    (con pocas habitaciones rooms[size/2] podía ser la de la salida y la tapaba)
+        val intermedias = rooms.filter { it != rooms.first() && it != farthestRoom }
+        val enemyRoom = intermedias.getOrNull(intermedias.size / 2)
+        enemyPos = if (enemyRoom != null) {
+            Cell(enemyRoom.centerY(), enemyRoom.centerX())
+        } else {
+            // Solo hay 1 o 2 habitaciones: el enemigo va a una esquina de la sala de salida
+            Cell(farthestRoom.y, farthestRoom.x)
+        }
         grid[enemyPos.row][enemyPos.col] = ENEMY
     }
 
@@ -132,12 +146,18 @@ class DungeonGenerator(
     // MECÁNICAS DE JUEGO (usan Dijkstra)
     // ================================================================
 
-    /** Mueve al jugador si la celda destino es transitable. Devuelve true si ganó. */
-    fun movePlayer(dRow: Int, dCol: Int): Boolean {
+    /** Resultado de intentar mover al jugador una celda. */
+    enum class MoveResult { BLOCKED, MOVED, WON, CAUGHT }
+
+    /** Mueve al jugador si la celda destino es transitable. */
+    fun movePlayer(dRow: Int, dCol: Int): MoveResult {
         val nr = playerPos.row + dRow
         val nc = playerPos.col + dCol
-        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) return false
-        if (grid[nr][nc] == WALL) return false
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) return MoveResult.BLOCKED
+        if (grid[nr][nc] == WALL) return MoveResult.BLOCKED
+
+        // Caminar hacia el monstruo también es perder (antes se podía atravesar)
+        if (Cell(nr, nc) == enemyPos) return MoveResult.CAUGHT
 
         val won = grid[nr][nc] == EXIT
 
@@ -146,7 +166,7 @@ class DungeonGenerator(
         playerPos = Cell(nr, nc)
         grid[playerPos.row][playerPos.col] = PLAYER
 
-        return won
+        return if (won) MoveResult.WON else MoveResult.MOVED
     }
 
     /**
@@ -162,14 +182,13 @@ class DungeonGenerator(
             }
         }}
 
-        // DIJKSTRA: encontrar el siguiente paso del enemigo hacia el jugador
-        val next = Dijkstra.nextStep(pathGrid, enemyPos, playerPos) ?: return false
-
-        // Actualizar camino completo para visualización
+        // DIJKSTRA (una sola vez por turno): el camino completo sirve para visualizarlo
+        // y su segunda celda es el siguiente paso del enemigo
         currentPath = Dijkstra.findPath(pathGrid, enemyPos, playerPos)
+        val next = currentPath.getOrNull(1) ?: return false
 
-        // Mover el enemigo
-        grid[enemyPos.row][enemyPos.col] = FLOOR
+        // Mover el enemigo (si estaba parado sobre la salida, la salida se restaura)
+        grid[enemyPos.row][enemyPos.col] = if (enemyPos == exitPos) EXIT else FLOOR
         enemyPos = next
 
         return if (enemyPos == playerPos) {

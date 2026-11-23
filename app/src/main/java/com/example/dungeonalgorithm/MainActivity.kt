@@ -57,11 +57,19 @@ fun DungeonGameScreen() {
 
     fun onPlayerMove(dRow: Int, dCol: Int) {
         if (gameState != "playing") return
-        val won = dungeon.movePlayer(dRow, dCol)
-        if (won) {
-            gameState = "won"
-            statusMsg = "¡VICTORIA! 🏆 Escapaste de la mazmorra"
-            return
+        when (dungeon.movePlayer(dRow, dCol)) {
+            DungeonGenerator.MoveResult.WON -> {
+                gameState = "won"
+                statusMsg = "¡VICTORIA! 🏆 Escapaste de la mazmorra"
+                return
+            }
+            DungeonGenerator.MoveResult.CAUGHT -> {
+                gameState = "lost"
+                statusMsg = "GAME OVER 💀 Caminaste hacia el monstruo"
+                return
+            }
+            DungeonGenerator.MoveResult.BLOCKED -> return  // chocar con una pared no gasta el turno
+            DungeonGenerator.MoveResult.MOVED -> {}
         }
         val lost = dungeon.moveEnemy()
         if (lost) {

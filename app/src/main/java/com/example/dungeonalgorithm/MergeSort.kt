@@ -58,6 +58,28 @@ object MergeSort {
     }
 
     /**
+     * Versión genérica: ordena cualquier lista con el comparador dado (de menor a mayor).
+     * Es estable, igual que sortByArea. La usa Kruskal para ordenar las aristas por peso.
+     */
+    fun <T> sort(items: List<T>, comparator: Comparator<in T>): List<T> {
+        if (items.size <= 1) return items
+
+        val mid = items.size / 2
+        val left = sort(items.subList(0, mid), comparator)
+        val right = sort(items.subList(mid, items.size), comparator)
+
+        val result = ArrayList<T>(items.size)
+        var i = 0; var j = 0
+        while (i < left.size && j < right.size) {
+            if (comparator.compare(left[i], right[j]) <= 0) { result.add(left[i]); i++ }
+            else { result.add(right[j]); j++ }
+        }
+        while (i < left.size) { result.add(left[i]); i++ }
+        while (j < right.size) { result.add(right[j]); j++ }
+        return result
+    }
+
+    /**
      * Variante: ordenar por distancia al origen (0,0)
      * Útil para decidir cuál habitación es la "entrada" (la más cercana al origen)
      */
