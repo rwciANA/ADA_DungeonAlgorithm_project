@@ -182,11 +182,10 @@ class DungeonGenerator(
             }
         }}
 
-        // DIJKSTRA: encontrar el siguiente paso del enemigo hacia el jugador
-        val next = Dijkstra.nextStep(pathGrid, enemyPos, playerPos) ?: return false
-
-        // Actualizar camino completo para visualización
+        // DIJKSTRA (una sola vez por turno): el camino completo sirve para visualizarlo
+        // y su segunda celda es el siguiente paso del enemigo
         currentPath = Dijkstra.findPath(pathGrid, enemyPos, playerPos)
+        val next = currentPath.getOrNull(1) ?: return false
 
         // Mover el enemigo (si estaba parado sobre la salida, la salida se restaura)
         grid[enemyPos.row][enemyPos.col] = if (enemyPos == exitPos) EXIT else FLOOR
