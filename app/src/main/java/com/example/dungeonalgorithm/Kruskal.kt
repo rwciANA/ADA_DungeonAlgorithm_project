@@ -88,8 +88,8 @@ object Kruskal {
         }
 
         // PASO 2: Ordenar las aristas por peso (distancia) de menor a mayor
-        // Aquí podríamos usar nuestro Merge Sort, o el sort estándar
-        edges.sortBy { it.weight }
+        // con nuestro propio Merge Sort (divide y vencerás) en vez del sort de Kotlin
+        val sortedEdges = MergeSort.sort(edges, compareBy { it.weight })
 
         // PASO 3: Iterar aristas e ir agregando las que no formen ciclo
         val uf = UnionFind(rooms.size)
@@ -98,7 +98,7 @@ object Kruskal {
 
         val mst = mutableListOf<Corridor>()
 
-        for (edge in edges) {
+        for (edge in sortedEdges) {
             val idxA = roomIndex[edge.roomA.id] ?: continue
             val idxB = roomIndex[edge.roomB.id] ?: continue
 
